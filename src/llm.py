@@ -1,4 +1,3 @@
-import os
 from openai import OpenAI  # 导入OpenAI库用于访问GPT模型
 from logger import LOG  # 导入日志模块
 
@@ -11,13 +10,23 @@ class LLM:
 
     def generate_daily_report(self, markdown_content, dry_run=False):
         # 构建一个用于生成报告的提示文本，要求生成的报告包含新增功能、主要改进和问题修复
-        prompt = f"以下是项目的最新进展，根据功能合并同类项，形成一份简报，至少包含：1）新增功能；2）主要改进；3）修复问题；:\n\n{markdown_content}"
+        sys_prompt = f"""
+            请帮助我整理项目的最新进展，并根据以下要求合并同类项，生成一份简报。简报内容需要包含以下三部分：
+
+            1. **新增功能**
+            2. **主要改进**
+            3. **修复问题**
+
+            请注意，所有总结和回答需要使用**中文**。简报应清晰简洁。
+        """
+        user_prompt = f"\n\n{markdown_content}"
         
         if dry_run:
             # 如果启用了dry_run模式，将不会调用模型，而是将提示信息保存到文件中
             LOG.info("Dry run mode enabled. Saving prompt to file.")
             with open("daily_progress/prompt.txt", "w+") as f:
-                f.write(prompt)
+                f.write(sys_prompt)
+                f.write(user_prompt)
             LOG.debug("Prompt saved to daily_progress/prompt.txt")
             return "DRY RUN"
 
@@ -27,9 +36,10 @@ class LLM:
         try:
             # 调用OpenAI GPT模型生成报告
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",  # 指定使用的模型版本
+                model="gpt-4o",  # 指定使用的模型版本
                 messages=[
-                    {"role": "user", "content": prompt}  # 提交用户角色的消息
+                    {"system": sys_prompt},  # 系统指令，设定助手的行为
+                    {"role": "user", "content": user_prompt}  # 提交用户角色的消息
                 ]
             )
             LOG.debug("GPT response: {}", response)
